@@ -62,12 +62,12 @@ class FeatureEngineer():
             range(125, 241, 5))
         self.rt_s2i = {v: i for i, v in enumerate(RT)}
 
-        INSTRUMENT = ['Orbitrap exactive hf',
-                      'Orbitrap exactive hf-x',
-                      'Orbitrap exploris 480',
-                      'Orbitrap fusion lumos',
-                      'Tripletof 5600',
-                      'Tripletof 6600',
+        INSTRUMENT = ['Q Exactive HF',
+                      'Q Exactive HF-X',
+                      'Orbitrap Exploris 480',
+                      'Orbitrap Fusion Lumos',
+                      'TripleTOF 5600',
+                      'TripleTOF 6600',
                       'Other']
         self.instrument_s2i = {v: i for i, v in enumerate(INSTRUMENT)}
 

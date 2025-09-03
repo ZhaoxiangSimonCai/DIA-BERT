@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.common import constant
 from src.common import runtime_data_info
 from src.common.constant import ProgressStepEnum, ProgressStepStatusEnum
-from src.finetune.dataset import combine_data
+from src.finetune.dataset import combine_data, combine_data_fold
 from src.finetune.utils import set_seeds, mkdir_p
 from src.utils import msg_send_utils
 
@@ -45,65 +45,24 @@ class EvalProcess():
 
             base_config_path = './config/finetune/base_train.yaml'
 
-            #
-            with open(base_config_path) as f_in:
-                config = yaml.safe_load(f_in)
+            for fold in range(5):
+                self.eval_fold(fold, base_config_path)
 
-            model_save_folder_path = os.path.join(self.base_output, 'finetune', 'model')
+            df_list = []
+            for fold in range(5):
+                # 读取每个的结果
+                fold_precursor_fdr_path = os.path.join(self.base_output, 'finetune', 'output', f'fold{fold}',
+                                              'fdr_{}_eval.csv'.format(self.mzml_name))
+                fold_df = pd.read_csv(fold_precursor_fdr_path)
+                self.logger.info(f'fold{fold}, 1% fdr num: {len(fold_df)}')
+                df_list.append(fold_df)
+            df = pd.concat(df_list, axis=0)
+            # 把每个finetune的fdr结果合并在一起
+            precursor_fdr_path = os.path.join(self.base_output, 'finetune', 'output',
+                                              'fdr_{}_eval.csv'.format(self.mzml_name))
+            self.logger.info(f'all fold, 1% fdr num: {len(df)}')
+            df.to_csv(precursor_fdr_path, index=False)
 
-            finetune_data_path = os.path.join(self.base_output, 'finetune', 'data')
-            tb_summarywriter = os.path.join(self.base_output, 'finetune', 'logs')
-            model_train_output_path = os.path.join(self.base_output, 'finetune', 'output')
-            mkdir_p(model_save_folder_path)
-            mkdir_p(tb_summarywriter)
-            mkdir_p(model_train_output_path)
-
-            config['task_name'] = 'eval'
-
-            sw = SummaryWriter(config["tb_summarywriter"])
-            set_seeds(config['seed'])
-            config['model_path'] = model_save_folder_path
-            config['model_save_folder_path'] = model_save_folder_path
-            config['data_path'] = finetune_data_path
-            # config['model_path'] = base_model_path
-            config['tb_summarywriter'] = tb_summarywriter
-            config['out_path'] = model_train_output_path
-
-            torch_device = torch.device(self.device)
-
-            # device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
-            metrics_finetune_csv_path = os.path.join(self.base_output, 'metrics_finetune.csv')
-            csv_df = pd.read_csv(metrics_finetune_csv_path, header=None)
-            csv_df.columns = ['file_name', 'epoch', 'loss', 'auc', 'acc', 'dt', 'model_name']
-            model_name = csv_df.loc[csv_df['loss'].idxmin(), 'model_name']
-            model_path = os.path.join(config['model_path'], model_name)
-            self.logger.info('Get min loss model, {}'.format(model_path))
-            msg_send_utils.send_msg(msg='Min loss model is: {}'.format(model_path))
-
-            #
-            config['epochs'] = self.train_epochs
-            config['phase'] = 'final'
-
-            dl = combine_data(config, phase=config['phase'])
-            #
-            if self.env == constant.env_linux:
-                strategy = DDPStrategy(gradient_as_bucket_view=True, find_unused_parameters=True)
-            else:
-                strategy = DDPStrategy(gradient_as_bucket_view=True, find_unused_parameters=True, process_group_backend="gloo")
-            trainer = ptl.Trainer(
-                accelerator="auto",
-                devices=[self.gpu_device_list[0]],
-                strategy=strategy,
-                enable_progress_bar=False,
-            )
-
-            model = DIABertModel.load(model_path)
-            model.half()
-            model.to(torch_device)
-
-            msg_send_utils.send_msg(msg='Start eval model')
-            evaluate = Evalute(config, model, model_name, sw)
-            trainer.test(evaluate, dataloaders=dl)
             msg_send_utils.send_msg(step=ProgressStepEnum.FINETUNE_EVAL, status=ProgressStepStatusEnum.SUCCESS,
                                     msg='Finish eval model')
         except Exception as e:
@@ -111,3 +70,66 @@ class EvalProcess():
             runtime_data_info.runtime_data.current_is_success = False
             msg_send_utils.send_msg(step=ProgressStepEnum.FINETUNE_EVAL, status=ProgressStepStatusEnum.ERROR, msg='Eval model exception: {}'.format(e))
 
+
+    def eval_fold(self, fold, base_config_path):
+        with open(base_config_path) as f_in:
+            config = yaml.safe_load(f_in)
+
+        model_save_folder_path = os.path.join(self.base_output, 'finetune', 'model', f'fold{fold}')
+        tb_summarywriter = os.path.join(self.base_output, 'finetune', 'logs', f'fold{fold}')
+        model_train_output_path = os.path.join(self.base_output, 'finetune', 'output', f'fold{fold}')
+
+        finetune_data_path = os.path.join(self.base_output, 'finetune', 'data')
+
+        mkdir_p(model_save_folder_path)
+        mkdir_p(tb_summarywriter)
+        mkdir_p(model_train_output_path)
+
+        config['task_name'] = 'eval'
+
+        sw = SummaryWriter(config["tb_summarywriter"])
+        set_seeds(config['seed'])
+        # config['model_path'] = model_save_folder_path
+        config['model_save_folder_path'] = model_save_folder_path
+        config['data_path'] = finetune_data_path
+        config['tb_summarywriter'] = tb_summarywriter
+        config['out_path'] = model_train_output_path
+
+        torch_device = torch.device(self.device)
+
+        metrics_out_path = os.path.join(self.base_output, 'finetune', 'metrics', f'fold{fold}')
+        # device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
+        metrics_finetune_csv_path = os.path.join(metrics_out_path, 'metrics_finetune.csv')
+        csv_df = pd.read_csv(metrics_finetune_csv_path, header=None)
+        csv_df.columns = ['file_name', 'epoch', 'loss', 'auc', 'acc', 'dt', 'model_name']
+        model_name = csv_df.loc[csv_df['loss'].idxmin(), 'model_name']
+        model_path = os.path.join(model_save_folder_path, model_name)
+        self.logger.info('Get min loss model, {}'.format(model_path))
+        msg_send_utils.send_msg(msg='Min loss model is: {}'.format(model_path))
+
+        #
+        config['epochs'] = self.train_epochs
+        config['phase'] = 'final'
+
+        # finetune_data_path, fold, phase, batch_size
+        dl = combine_data_fold(finetune_data_path, fold, 'test', config['predict_batch_size'])
+        #
+        if self.env == constant.env_linux:
+            strategy = DDPStrategy(gradient_as_bucket_view=True, find_unused_parameters=True)
+        else:
+            strategy = DDPStrategy(gradient_as_bucket_view=True, find_unused_parameters=True,
+                                   process_group_backend="gloo")
+        trainer = ptl.Trainer(
+            accelerator="auto",
+            devices=[self.gpu_device_list[0]],
+            strategy=strategy,
+            enable_progress_bar=False,
+        )
+
+        model = DIABertModel.load(model_path)
+        model.half()
+        model.to(torch_device)
+
+        msg_send_utils.send_msg(msg='Start eval model')
+        evaluate = Evalute(config, model, model_name, sw)
+        trainer.test(evaluate, dataloaders=dl)

@@ -153,7 +153,8 @@ def peak_group_data_epoch(sc_deal_thread, input_param, mzml_path, ms1, ms2, win_
         #
         mzml_rt = instrument_info_utils.get_mzml_nearest_rt(mzml_rt)
         logger.info('mzml rt is: {}'.format(mzml_rt))
-        mzml_instrument = input_param.instrument
+        # mzml_instrument = input_param.instrument
+        # todo
         mzml_name = os.path.split(mzml_path)[-1]
 
         precursor_info = torch.tensor(precursor_info_list, dtype=torch.float32)

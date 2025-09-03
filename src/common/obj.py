@@ -38,7 +38,7 @@ class InputParam(object):
         self.queue_size = 5
 
         self.decoy_check = None
-        self.raw_rt_unit = None
+        # self.raw_rt_unit = None
         self.skip_no_temp = 0
 
         self.dev_model = True
@@ -68,7 +68,7 @@ class InputParam(object):
 
         self.draw_rt_pic = False
 
-        self.clear_data = True
+        self.clear_data = False
 
         self.finetune_score_limit = 0.2
         self.train_epochs = 10
@@ -80,7 +80,7 @@ class InputParam(object):
 
         self.env = 'linux'
 
-        self.instrument = None
+        # self.instrument = None
 
         self.ext_frag_quant_open = False
         self.ext_frag_quant_model = None

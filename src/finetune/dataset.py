@@ -17,42 +17,39 @@ def is_directory_empty(path):
     return len([f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))])== 0
 
 
-def combine_data(config, phase):
+def combine_data_fold(finetune_data_path, fold, phase, batch_size):
     # phase: train, val, final
+    # 根据fold计算出train的训练集
+    if fold == 0:
+        train_chunk_list = [0, 1, 2]
+        val_chunk_list = [3]
+        test_chunk_list = [4]
+    elif fold == 1:
+        train_chunk_list = [0, 1, 4]
+        val_chunk_list = [2]
+        test_chunk_list = [3]
+    elif fold == 2:
+        train_chunk_list = [0, 3, 4]
+        val_chunk_list = [1]
+        test_chunk_list = [2]
+    elif fold == 3:
+        train_chunk_list = [2, 3, 4]
+        val_chunk_list = [0]
+        test_chunk_list = [1]
+    else:
+        train_chunk_list = [1, 2, 3]
+        val_chunk_list = [4]
+        test_chunk_list = [0]
+
     if phase == 'train':
-        data_path = os.path.join(config['data_path'], 'sp_train_feat')
-        file_list = [os.path.join(data_path, filename) for filename in os.listdir(data_path) \
-                     if (filename.endswith("pkl"))]
+        file_list = [os.path.join(finetune_data_path, f'chunk_{train_chunk}.pkl') for train_chunk in train_chunk_list]
         random.shuffle(file_list)
-        
     elif phase == 'val':
-        data_path = os.path.join(config['data_path'], 'sp_test_feat')
-        file_list = [os.path.join(data_path, filename) for filename in os.listdir(data_path) \
-                     if (filename.endswith("pkl"))]
-        
-    elif phase.startswith('pretain'): # pretain_train, pretain_test
-        pretain_total_path = config['data_path'].split(';')
+        file_list = [os.path.join(finetune_data_path, f'chunk_{val_chunk}.pkl') for val_chunk in val_chunk_list]
+    else:
+        # test
+        file_list = [os.path.join(finetune_data_path, f'chunk_{test_chunk}.pkl') for test_chunk in test_chunk_list]
 
-        file_list = []
-        for pretain_path in pretain_total_path:
-            pkl_path = glob.glob(f"{pretain_path}/{config['task_name']}/*/sp_{config['phase'].split('_')[-1]}_feat/*.pkl")
-            file_list.extend(pkl_path)
-            
-        file_list = [f for f in file_list if not is_file_empty(f)]
-
-    else: # final
-        train_path = os.path.join(config['data_path'], 'sp_train_feat')
-        valid_path = os.path.join(config['data_path'], 'sp_test_feat')
-
-        train_file_list = [os.path.join(train_path, filename) for filename in os.listdir(train_path) \
-                           if (filename.endswith("pkl"))]
-        valid_file_list = [os.path.join(valid_path, filename) for filename in os.listdir(valid_path) \
-                           if (filename.endswith("pkl"))]
-        file_list = train_file_list + valid_file_list
-        
-    # filter empty file
-    file_list = [f for f in file_list if not is_file_empty(f)]
-    
     data = []
     for bin_file in file_list:
         try:
@@ -66,10 +63,10 @@ def combine_data(config, phase):
     data = ConcatDataset(data)
     
     if phase == 'train':
-        batch_size = config["train_batch_size"]
+        # batch_size = config["train_batch_size"]
         shuffle_flag = True
     else:
-        batch_size = config["predict_batch_size"]
+        # batch_size = config["predict_batch_size"]
         shuffle_flag = False
     
     dl = DataLoader(data,
@@ -78,6 +75,71 @@ def combine_data(config, phase):
                     pin_memory=True,
                     num_workers=0,
                     collate_fn=collate_batch,)
+    return dl
+
+
+def combine_data(config, phase):
+    # phase: train, val, final
+    if phase == 'train':
+        data_path = os.path.join(config['data_path'], 'sp_train_feat')
+        file_list = [os.path.join(data_path, filename) for filename in os.listdir(data_path) \
+                     if (filename.endswith("pkl"))]
+        random.shuffle(file_list)
+
+    elif phase == 'val':
+        data_path = os.path.join(config['data_path'], 'sp_test_feat')
+        file_list = [os.path.join(data_path, filename) for filename in os.listdir(data_path) \
+                     if (filename.endswith("pkl"))]
+
+    elif phase.startswith('pretain'):  # pretain_train, pretain_test
+        pretain_total_path = config['data_path'].split(';')
+
+        file_list = []
+        for pretain_path in pretain_total_path:
+            pkl_path = glob.glob(
+                f"{pretain_path}/{config['task_name']}/*/sp_{config['phase'].split('_')[-1]}_feat/*.pkl")
+            file_list.extend(pkl_path)
+
+        file_list = [f for f in file_list if not is_file_empty(f)]
+
+    else:  # final
+        train_path = os.path.join(config['data_path'], 'sp_train_feat')
+        valid_path = os.path.join(config['data_path'], 'sp_test_feat')
+
+        train_file_list = [os.path.join(train_path, filename) for filename in os.listdir(train_path) \
+                           if (filename.endswith("pkl"))]
+        valid_file_list = [os.path.join(valid_path, filename) for filename in os.listdir(valid_path) \
+                           if (filename.endswith("pkl"))]
+        file_list = train_file_list + valid_file_list
+
+    # filter empty file
+    file_list = [f for f in file_list if not is_file_empty(f)]
+
+    data = []
+    for bin_file in file_list:
+        try:
+            f = open(bin_file, "rb")
+            data.append(pickle.loads(f.read()))
+            f.close()
+        except:
+            print(f'load file {bin_file} error')
+            continue
+
+    data = ConcatDataset(data)
+
+    if phase == 'train':
+        batch_size = config["train_batch_size"]
+        shuffle_flag = True
+    else:
+        batch_size = config["predict_batch_size"]
+        shuffle_flag = False
+
+    dl = DataLoader(data,
+                    shuffle=shuffle_flag,
+                    batch_size=batch_size,
+                    pin_memory=True,
+                    num_workers=0,
+                    collate_fn=collate_batch, )
     return dl
 
 

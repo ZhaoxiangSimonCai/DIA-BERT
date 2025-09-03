@@ -10,7 +10,7 @@ from src.utils import msg_send_utils
 '''
 
 
-def load_and_temp_raw(rawdata_file_dir_path, mzml_name, mz_min, mz_max, rt_unit='min', thread_num=10, skip_no_temp=False, logger=None):
+def load_and_temp_raw(rawdata_file_dir_path, mzml_name, mz_min, mz_max, rt_unit='minute', thread_num=10, skip_no_temp=False, logger=None):
 
 
     msg_send_utils.send_msg(step=ProgressStepEnum.PARSE_MZML, status=ProgressStepStatusEnum.RUNNING,
@@ -21,7 +21,7 @@ def load_and_temp_raw(rawdata_file_dir_path, mzml_name, mz_min, mz_max, rt_unit=
     if not os.path.exists(temp_pkl_dir_path):
         os.mkdir(temp_pkl_dir_path)
 
-    if rt_unit == 'min':
+    if rt_unit == 'minute':
         temp_mz_dir_path = os.path.join(temp_pkl_dir_path, '{}_{}'.format(mz_min, mz_max))
     else:
         temp_mz_dir_path = os.path.join(temp_pkl_dir_path, '{}_{}_{}'.format(mz_min, mz_max, rt_unit))

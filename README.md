@@ -12,7 +12,6 @@ Liu, Z., Liu, P., Sun, Y. et al. DIA-BERT: pre-trained end-to-end transformer mo
 
 ## Software
 The software and manual can be downloaded from https://guomics.com/DIA-BERT/downloads.html.
-On Windows systems, download and unzip the zip file. Click on DIA-BERT.exe to run without installation. 
 On Linux, download the file from the release. DIA-BERT runs install-free and requires no additional configuration of the environment. 
 
 ## Installation
@@ -32,8 +31,6 @@ source activate DIA-BERT (If the command doesn't work, please refer to the Conda
 ```
 
 ```shell
-#On Windows systems
-pip install -r requirements_windows.txt
 #On Linux
 pip install -r requirements_linux.txt
 ```
@@ -43,15 +40,6 @@ pip install -r requirements_linux.txt
 
 Specifically, first select the CUDA version according to your own operating system, and then, based on the CUDA version, choose the corresponding installation command to execute. For example, run "pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124". You can check the installed CUDA version by running the nvcc --version command.
 
-
-Run GUI
-```shell
-python main_applet.py (On Linux, there's no need to install wxPython.)
-```
-
-Windows command-line run
-```shell
-python main_win.py
 
 ```
 Linux command-line run

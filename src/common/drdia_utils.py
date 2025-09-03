@@ -321,12 +321,12 @@ def calc_win_id(precursor_mz, win_range):
 
 
 def load_rawdata(rawdata_file, mz_min, mz_max, rt_unit, logger=None):
-    if rt_unit == 'sec':
+    if rt_unit == 'second':
         base_rt_multiple = 1
-    elif rt_unit == 'min':
+    elif rt_unit == 'minute':
         base_rt_multiple = 60
     else:
-        msg_send_utils.send_msg(msg="Invalid rt_unit: %s !\nOnly sec and min are supported!" % rt_unit)
+        msg_send_utils.send_msg(msg="Invalid rt_unit: %s !\nOnly second and minute are supported!" % rt_unit)
         raise Exception("Invalid rt_unit: %s !\nOnly sec and min are supported!" % rt_unit)
 
     if rawdata_file.endswith(".mzXML"):

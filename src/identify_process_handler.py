@@ -33,7 +33,12 @@ from src.result_build.result_build_process import ResultBuildProcess
 from src.utils import instrument_info_utils
 from src.utils import list_utils
 from src.utils import msg_send_utils
+import random
+import numpy as np
+GLOBAL_SEED = 123
 
+random.seed(GLOBAL_SEED)
+np.random.seed(GLOBAL_SEED)
 
 class IdentifyProcessHandler():
     def __init__(self, input_param: InputParam, logger=None):
@@ -160,14 +165,21 @@ class IdentifyProcessHandler():
         self.rawdata_prefix = mzml_name[:-5]
         base_raw_out_dir = os.path.join(self.input_param.out_path, self.rawdata_prefix)
         try:
-            self.mzml_instrument = self.input_param.instrument
+            fe = FeatureEngineer()
+            instrument, rt_unit = instrument_info_utils.get_mzml_meta_info(mzml_path)
+            self.logger.info(f'mzML instrument is: {instrument}, RT unit is: {rt_unit}')
+            if instrument == 'Q Exactive':
+                self.logger.warning(f'Convert instrument Q Exactive to Q Exactive HF')
+                instrument = 'Q Exactive HF'
+            if instrument not in fe.instrument_s2i:
+                self.logger.warning(f'Instrument {instrument} not in model instrument list, convert to Other')
+                instrument = 'Other'
+            self.mzml_instrument = instrument
 
-
-            self.deal_each_mzml_identify(mzml_path, mzml_name)
+            self.deal_each_mzml_identify(mzml_path, mzml_name, rt_unit)
             #
             if not self.input_param.open_finetune:
                 return
-            fe = FeatureEngineer()
             rt_index = fe.get_rt_s2i(self.mzml_rt)
             instrument_index = fe.get_instrument_s2i(self.mzml_instrument)
 
@@ -255,14 +267,14 @@ class IdentifyProcessHandler():
         else:
             msg_send_utils.send_msg(status=ProgressStepStatusEnum.FAIL_END)
 
-    def deal_each_mzml_identify(self, mzml_path, mzml_name):
+    def deal_each_mzml_identify(self, mzml_path, mzml_name, raw_rt_unit):
         logger = self.logger
 
         mzml_dir_path = os.path.split(mzml_path)[0]
         logger.info('Processing identify file {}. {}/{}'.format(mzml_name, self.deal_num, len(self.mzml_files)))
         ms1, ms2, win_range = raw_handler.load_and_temp_raw(mzml_dir_path, mzml_name, self.input_param.mz_min,
                                                             self.input_param.mz_max,
-                                                            rt_unit=self.input_param.raw_rt_unit,
+                                                            rt_unit=raw_rt_unit,
                                                             skip_no_temp=self.input_param.skip_no_temp,
                                                             logger=self.logger)
         if ms1 is None or ms2 is None or win_range is None:

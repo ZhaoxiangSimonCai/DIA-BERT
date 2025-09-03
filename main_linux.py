@@ -35,8 +35,8 @@ if __name__ == '__main__':
     parser.add_option("--decoy_method", type="string", default="mutate",
                       help="The decoy generation strategy of Identification: [mutate]")
 
-    parser.add_option("--instrument", type="string", default="Other",
-                      help="The instrument type of the mass spectrometry file: [Orbitrap exactive hf, Orbitrap exactive hf-x, Orbitrap exploris 480, Orbitrap fusion lumos, Tripletof 5600, Tripletof 6600, Other]")
+    # parser.add_option("--instrument", type="string", default="Other",
+    #                   help="The instrument type of the mass spectrometry file: [Orbitrap exactive hf, Orbitrap exactive hf-x, Orbitrap exploris 480, Orbitrap fusion lumos, Tripletof 5600, Tripletof 6600, Other]")
 
     parser.add_option("--n_cycles", type="int", default="100", help="The search scope for the precursor identification")
 
@@ -46,8 +46,8 @@ if __name__ == '__main__':
     parser.add_option("--batch_size", type="int", default=batch_size,
                       help="The number of precursors processed per batch")
 
-    parser.add_option("--raw_rt_unit", type="string", default="min",
-                      help="Units of retention time in mass spectrometry file:[min, sec]")
+    # parser.add_option("--raw_rt_unit", type="string", default="min",
+    #                   help="Units of retention time in mass spectrometry file:[min, sec]")
 
     parser.add_option("--device", type="string", default="cuda",
                       help="Device: [cuda]")
@@ -116,14 +116,14 @@ if __name__ == '__main__':
         input_param.fitting_rt_num = 50000
         input_param.fitting_rt_batch_size = options.fitting_rt_batch_size
 
-        input_param.raw_rt_unit = options.raw_rt_unit
+        # input_param.raw_rt_unit = options.raw_rt_unit
 
         input_param.finetune_score_limit = options.finetune_score_limit
         input_param.train_epochs = options.train_epochs
 
         input_param.env = constant.env_linux
 
-        input_param.instrument = options.instrument
+        # input_param.instrument = options.instrument
 
         common_config_data = common_config.read_yml()
 

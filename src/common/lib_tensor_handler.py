@@ -366,9 +366,9 @@ def construct_diagonal_matrix_v3(ms1_extract_tensor_three, ms2_extract_tensor_th
     min_win_id = pmt_win_id_list[0]
     pmt_win_id_t = pmt_win_id_list.reshape(pmt_win_id_list.shape[0], 1, 1)
     ms1_extract_tensor_three = ms1_extract_tensor_three + torch.tensor(pmt_win_id_t, device=device,
-                                                                       dtype=torch.float32) * each_moz_max
+                                                                       dtype=torch.float64) * each_moz_max
     ms2_extract_tensor_three = ms2_extract_tensor_three + torch.tensor(pmt_win_id_t, device=device,
-                                                                       dtype=torch.float32) * each_moz_max
+                                                                       dtype=torch.float64) * each_moz_max
 
     ms1_extract_tensor_three[conn_zero_ms1] = 0
     ms2_extract_tensor_three[conn_zero_ms2] = 0

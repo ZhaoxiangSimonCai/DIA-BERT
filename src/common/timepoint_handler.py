@@ -165,13 +165,12 @@ def get_rt_model_params(input_param: InputParam, rawdata_prefix, lib_prefix, lib
     if not os.path.exists(rt_out_file_dir):
         os.makedirs(rt_out_file_dir)
 
-    #
-    # rt_param_exist_flag = rt_utils_v5.only_check_rt_model_params(rt_out_file_dir)
-    # if rt_param_exist_flag:
-    #     logger.info('rt param file exist')
-    #     msg_send_utils.send_msg(step=ProgressStepEnum.RT_NORMALIZATION, status=ProgressStepStatusEnum.SUCCESS,
-    #                             msg='RT normalization is exist, {}'.format(rt_out_file_dir))
-    #     return rt_utils_v5.get_rt_model_params(rt_out_file_dir)
+    rt_param_exist_flag = rt_utils_v5.only_check_rt_model_params(rt_out_file_dir)
+    if rt_param_exist_flag:
+        logger.info('rt param file exist')
+        msg_send_utils.send_msg(step=ProgressStepEnum.RT_NORMALIZATION, status=ProgressStepStatusEnum.SUCCESS,
+                                msg='RT normalization is exist, {}'.format(rt_out_file_dir))
+        return rt_utils_v5.get_rt_model_params(rt_out_file_dir)
 
     success, pick_precursor_list = deal(input_param, lib_cols_org, lib_data_org, mzml_path, ms1, ms2, win_range, logger)
     prt2 = time.time()

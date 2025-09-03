@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from src.common import constant
 from src.common.constant import ProgressStepEnum, ProgressStepStatusEnum
-from src.finetune.dataset import combine_data
+from src.finetune.dataset import combine_data_fold
 from src.finetune.utils import set_seeds, mkdir_p
 from src.utils import msg_send_utils
 
@@ -37,80 +37,74 @@ class FinetuneTrainProcess(object):
         self.logger.info('Processing finetune train model')
         msg_send_utils.send_msg(step=ProgressStepEnum.FINETUNE_TRAIN, status=ProgressStepStatusEnum.RUNNING,
                                 msg='Processing finetune train model, train epochs: {}'.format(self.train_epochs))
-
         torch.set_float32_matmul_precision = 'high'
-
         base_config_path = './config/finetune/base_train.yaml'
 
-        #
-        with open(base_config_path) as f_in:
-            config = yaml.safe_load(f_in)
+        for fold in range(5):
+            self.train_fold(fold, base_config_path)
 
-        model_save_folder_path = os.path.join(self.base_output, 'finetune', 'model')
-        model_train_output_path = os.path.join(self.base_output, 'finetune', 'output')
-        final_model_path = os.path.join(model_save_folder_path, 'finetune.ckpt')
-        base_model_path = self.base_model_path
-        finetune_data_path = os.path.join(self.base_output, 'finetune', 'data')
-
-        #
-        sp_train_feat_dir = os.path.join(finetune_data_path, 'sp_train_feat')
-        sp_test_feat_dir = os.path.join(finetune_data_path, 'sp_test_feat')
-        if not os.path.exists(sp_test_feat_dir) or not os.path.exists(sp_train_feat_dir) or len(
-                os.listdir(sp_train_feat_dir)) == 0 or len(os.listdir(sp_test_feat_dir)) == 0:
-            self.logger.error('There is no finetune data')
-            msg_send_utils.send_msg(step=ProgressStepEnum.FINETUNE_TRAIN, status=ProgressStepStatusEnum.ERROR,
-                                    msg='There is no finetune data')
-            return False
-
-        tb_summarywriter = os.path.join(self.base_output, 'finetune', 'logs')
-        mkdir_p(model_save_folder_path)
-        mkdir_p(tb_summarywriter)
-        set_seeds(config['seed'])
-
-        #
-        config['epochs'] = self.train_epochs
-        config['model_save_folder_path'] = model_save_folder_path
-        config['final_model_path'] = final_model_path
-        config['data_path'] = finetune_data_path
-        config['model_path'] = base_model_path
-        config['out_path'] = model_train_output_path
-        config['tb_summarywriter'] = tb_summarywriter
-        config['task_name'] = 'finetune'
-        config['metrics_out_path'] = self.base_output
-
-        self.train_process(config, base_model_path)
         self.logger.info('Finish finetune train model')
         msg_send_utils.send_msg(step=ProgressStepEnum.FINETUNE_TRAIN, status=ProgressStepStatusEnum.SUCCESS,
                                 msg='Finish finetune train model')
 
-    def train_process(self, config, model_path):
+    # 训练指定层
+    def train_fold(self, fold, base_config_path):
+        self.logger.info(f'Process train fold {fold}')
+        with open(base_config_path) as f_in:
+            config = yaml.safe_load(f_in)
+
+        model_save_folder_path = os.path.join(self.base_output, 'finetune', 'model', f'fold{fold}')
+        model_train_output_path = os.path.join(self.base_output, 'finetune', 'output', f'fold{fold}')
+        final_model_path = os.path.join(model_save_folder_path, f'fold{fold}', 'finetune.ckpt')
+        tb_summarywriter = os.path.join(self.base_output, 'finetune', 'logs', f'fold{fold}')
+        metrics_out_path = os.path.join(self.base_output, 'finetune', 'metrics', f'fold{fold}')
+
+        base_model_path = self.base_model_path
+        finetune_data_path = os.path.join(self.base_output, 'finetune', 'data')
+
+        os.makedirs(model_save_folder_path, exist_ok=True)
+        os.makedirs(tb_summarywriter, exist_ok=True)
+        os.makedirs(metrics_out_path, exist_ok=True)
+        set_seeds(config['seed'])
+
+        config['data_path'] = finetune_data_path
+        config['epochs'] = self.train_epochs
+
+        config['model_save_folder_path'] = model_save_folder_path
+        config['final_model_path'] = final_model_path
+        config['model_path'] = base_model_path
+        config['out_path'] = model_train_output_path
+        config['tb_summarywriter'] = tb_summarywriter
+        config['task_name'] = 'finetune'
+        config['metrics_out_path'] = metrics_out_path
+
+        self.train_process(config, base_model_path, fold)
+        self.logger.info(f'Finished train fold {fold}')
+
+    def train_process(self, config, model_path, fold):
         """Training function."""
         config["tb_summarywriter"] = os.path.join(config["tb_summarywriter"], datetime.now().strftime(
             "diabert_train_%y_%m_%d_%H_%M_%S"
         ))
-        mkdir_p(config["tb_summarywriter"])
+        os.makedirs(config["tb_summarywriter"], exist_ok=True)
         sw = SummaryWriter(config["tb_summarywriter"])
-        self.logger.info(f"Train begin!!! GPU nums: {torch.cuda.device_count()}, epoch: {config['epochs']}")
-        msg_send_utils.send_msg(msg=f"Train begin!!! GPU nums: {torch.cuda.device_count()}, epoch: {config['epochs']}")
+        self.logger.info(f"Train fold {fold} begin!!! GPU nums: {torch.cuda.device_count()}, epoch: {config['epochs']}")
+        msg_send_utils.send_msg(msg=f"Train fold {fold} begin!!! GPU nums: {torch.cuda.device_count()}, epoch: {config['epochs']}")
 
-        train_dl = combine_data(config, phase='train')
-        val_dl = combine_data(config, phase='val')
+        train_dl = combine_data_fold(config['data_path'], fold, 'train', config["train_batch_size"])
+        val_dl = combine_data_fold(config['data_path'], fold, 'val', config["train_batch_size"])
         self.logger.info(f"Updates the iter of per epoch is: train={len(train_dl):,}, val{len(val_dl)}"
                          f", optim_weight_part_decay: {bool(config['optim_weight_part_decay']):,}")
         msg_send_utils.send_msg(
             msg="Updates the iter of per epoch is: train: {}, val: {}, optim_weight_part_decay: {}".format(
                 len(train_dl), len(val_dl), bool(config['optim_weight_part_decay'])))
 
-        #
-        # torch.cuda.set_device(0)
-        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch_device = torch.device(self.device)
 
         #
-        mkdir_p(config["out_path"])
-        mkdir_p(config["tb_summarywriter"])
-        mkdir_p(config["model_save_folder_path"])
-        mkdir_p(config["out_path"])
+        os.makedirs(config["out_path"], exist_ok=True)
+        os.makedirs(config["tb_summarywriter"], exist_ok=True)
+        os.makedirs(config["model_save_folder_path"], exist_ok=True)
 
         #
         one_epoch_iters = len(train_dl)
@@ -171,7 +165,7 @@ class FinetuneTrainProcess(object):
         if config["train_strategy"] in ['deepspeed_stage_1', 'deepspeed_stage_2', 'deepspeed_stage_2_offload']:
             trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False
 
-        metrics_finetune_csv_path = os.path.join(self.base_output, 'metrics_finetune.csv')
+        metrics_finetune_csv_path = os.path.join(config['metrics_out_path'], f'metrics_finetune.csv')
         if os.path.exists(metrics_finetune_csv_path):
             os.remove(metrics_finetune_csv_path)
 
