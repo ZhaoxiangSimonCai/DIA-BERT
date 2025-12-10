@@ -67,6 +67,41 @@ class PTModule(ptl.LightningModule):
             score = sigmod(score)
         return score
 
+    @torch.no_grad()
+    def extract_embeddings(
+            self,
+            rsm: Tensor,
+            frag_info: Tensor,
+            feat: Tensor,
+            embedding_layer: str = 'penultimate',
+    ) -> np.ndarray:
+        """
+        Extract latent embeddings for foundation model integration.
+        
+        Args:
+            rsm: Input tensor of shape (batch, 8, 72, 16) - peak group matrix
+            frag_info: Fragment information tensor of shape (batch, 72, 4)
+            feat: Precursor features tensor of shape (batch, 10)
+            embedding_layer: Which layer to extract from:
+                - 'final': 64-dim (default)
+                - 'penultimate': 256-dim (recommended for foundation models)
+        
+        Returns:
+            numpy array of shape (batch_size, 64) or (batch_size, 256)
+        """
+        self.eval()
+        
+        # Move tensors to model device
+        device = next(self.parameters()).device
+        rsm = rsm.to(device)
+        frag_info = frag_info.to(device)
+        feat = feat.to(device)
+        
+        # Extract embeddings using model's get_embeddings method
+        embeddings = self.model.get_embeddings(rsm, frag_info, feat, embedding_layer)
+        
+        return embeddings.cpu().numpy()
+
     def training_step(  # need to update this
             self,
             batch: [Tensor, Tensor, Tensor, Tensor, list, list],

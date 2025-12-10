@@ -92,6 +92,10 @@ class InputParam(object):
         self.open_quantification = False
         self.protein_infer_key = 'ProteinID'
 
+        # ProCanFM embedding extraction
+        self.open_embedding_extraction = True
+        self.embedding_layer = 'penultimate'  # 'penultimate' (256-dim, default) or 'final' (64-dim)
+
         self.lib_load_version = 'v6'
 
         self.lib_filter = True

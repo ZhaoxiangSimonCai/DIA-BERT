@@ -60,7 +60,7 @@ class ResultBuildProcess():
         protein_infer.to_csv(protein_infer_path, index=False)
 
         #
-        precursor_fdr['Protein'] = precursor_fdr['peptide'].map(protein_infer.set_index('Peptides')['Protein'])
+        precursor_fdr['Protein'] = precursor_fdr['peptide'].map(protein_infer.drop_duplicates(subset=['Peptides']).set_index('Peptides')['Protein'])
         #
         precursor_fdr['ProteinName'] = precursor_fdr['Protein'].map(protein_name_dict)
         # precursor_fdr['ProteinGroups'] = precursor_fdr['Protein'].map(protein_group_dict)
